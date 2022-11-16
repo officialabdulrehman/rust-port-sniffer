@@ -2,6 +2,7 @@ use std::{
     env,
     io::{self, Write},
     net::{IpAddr, TcpStream},
+    process,
     str::FromStr,
     sync::mpsc::{channel, Sender},
     thread,
@@ -13,6 +14,48 @@ struct Input {
     flag: String,
     ip: IpAddr,
     threads: u16,
+}
+
+impl Input {
+    fn new(args: &[String]) -> Result<Input, &'static str> {
+        if (args.len() < 2) {
+            return Err("not enough arguments");
+        } else if args.len() > 4 {
+            return Err("too many arguments");
+        } else {
+            let firstArg = args[1].clone();
+            if let Ok(ip) = IpAddr::from_str(&firstArg) {
+                return Ok(Input {
+                    flag: String::from(""),
+                    ip,
+                    threads: 8,
+                });
+            } else {
+                let flag = args[1].clone();
+                if flag.contains("-h") || flag.contains("-help") && args.len() == 2 {
+                    println!(
+                        "Usage: -j to select how many threads you want
+              \n\r       -h or -help to show this help message"
+                    );
+                    return Err("help");
+                } else if flag.contains("-h") || flag.contains("-help") {
+                    return Err("too many arguments");
+                } else if flag.contains("-j") {
+                    let ip = match IpAddr::from_str(&args[3]) {
+                        Ok(s) => s,
+                        Err(_) => return Err("not a valid IP address; must be IPv4 or IPv6"),
+                    };
+                    let threads = match args[2].parse::<u16>() {
+                        Ok(s) => s,
+                        Err(_) => return Err("failed to parse thread number"),
+                    };
+                    return Ok(Input { threads, flag, ip });
+                } else {
+                    return Err("invalid syntax");
+                }
+            }
+        }
+    }
 }
 
 fn scan(tx: Sender<u16>, start_port: u16, ip: IpAddr, threads: u16) {
@@ -34,12 +77,20 @@ fn scan(tx: Sender<u16>, start_port: u16, ip: IpAddr, threads: u16) {
 }
 
 fn main() {
-    // let rawArgs: Vec<String> = env::args().collect();
-    let args = Input {
-        flag: String::from("-i"),
-        ip: IpAddr::from_str("192.168.10.1").unwrap(),
-        threads: 4,
-    };
+    let rawArgs: Vec<String> = env::args().collect();
+    // let args = Input {
+    //     flag: String::from("-i"),
+    //     ip: IpAddr::from_str("192.168.10.1").unwrap(),
+    //     threads: 4,
+    // };
+    let args = Input::new(&rawArgs).unwrap_or_else(|err| {
+        if (err.contains("help")) {
+            process::exit(0);
+        } else {
+            eprintln!("failed to parse the arguments: {}", err);
+            process::exit(0);
+        }
+    });
     let (tx, rx) = channel();
 
     for i in 0..args.threads {
