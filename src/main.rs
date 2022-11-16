@@ -10,6 +10,7 @@ use std::{
 
 const END_PORT: u16 = 65535;
 
+#[derive(Debug)]
 struct Input {
     flag: String,
     ip: IpAddr,
@@ -18,13 +19,13 @@ struct Input {
 
 impl Input {
     fn new(args: &[String]) -> Result<Input, &'static str> {
-        if (args.len() < 2) {
+        if args.len() < 2 {
             return Err("not enough arguments");
         } else if args.len() > 4 {
             return Err("too many arguments");
         } else {
-            let firstArg = args[1].clone();
-            if let Ok(ip) = IpAddr::from_str(&firstArg) {
+            let first_arg = args[1].clone();
+            if let Ok(ip) = IpAddr::from_str(&first_arg) {
                 return Ok(Input {
                     flag: String::from(""),
                     ip,
@@ -77,20 +78,21 @@ fn scan(tx: Sender<u16>, start_port: u16, ip: IpAddr, threads: u16) {
 }
 
 fn main() {
-    let rawArgs: Vec<String> = env::args().collect();
+    let raw_args: Vec<String> = env::args().collect();
     // let args = Input {
     //     flag: String::from("-i"),
     //     ip: IpAddr::from_str("192.168.10.1").unwrap(),
     //     threads: 4,
     // };
-    let args = Input::new(&rawArgs).unwrap_or_else(|err| {
-        if (err.contains("help")) {
+    let args = Input::new(&raw_args).unwrap_or_else(|err| {
+        if err.contains("help") {
             process::exit(0);
         } else {
             eprintln!("failed to parse the arguments: {}", err);
             process::exit(0);
         }
     });
+    println!("executing => {} {} {}", args.flag, args.ip, args.threads);
     let (tx, rx) = channel();
 
     for i in 0..args.threads {
